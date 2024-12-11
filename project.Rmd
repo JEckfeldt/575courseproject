@@ -1,0 +1,158 @@
+
+
+```{r include=FALSE}
+library(dplyr)
+library(caret)
+library(tm)
+library(text)
+library(ggplot2)
+library(scales)
+library(e1071)
+data <- read.csv("user_agents.csv")
+```
+
+
+
+```{r echo=FALSE}
+
+N <- 20
+
+filtered_data <- data %>%
+  filter(!is.na(simple_software_string)) %>%
+  arrange(desc(times_seen)) %>%
+  head(N) # Get the top N rows
+
+ggplot(filtered_data, aes(x = reorder(simple_software_string, -times_seen), y = times_seen)) +
+  geom_bar(stat = "identity", fill = "steelblue") +
+  coord_flip() + # Flip coordinates for better readability
+  labs(
+    title = "Most Seen User-Agents",
+    x = "Browser/Software",
+    y = "Times Seen"
+  ) +
+  scale_y_continuous(labels = comma) + 
+  theme_minimal()
+```
+
+
+```{r echo=FALSE}
+
+
+N <- 20
+
+filtered_data <- data %>%
+  filter(software_type == "browser" & !is.na(simple_software_string)) %>%
+  arrange(desc(times_seen)) %>%
+  head(N) # Get the top N rows
+
+ggplot(filtered_data, aes(x = reorder(simple_software_string, -times_seen), y = times_seen)) +
+  geom_bar(stat = "identity", fill = "steelblue") +
+  coord_flip() + # Flip coordinates for better readability
+  labs(
+    title = "Most Seen Browser-Software (2016-2022)",
+    x = "Browser/Software",
+    y = "Times Seen"
+  ) +
+  scale_y_continuous(labels = comma) +
+  theme_minimal()
+
+```
+
+
+
+```{r echo=FALSE}
+N <- 20
+
+filtered_data <- data %>%
+  filter(software_type == "application" & !is.na(simple_software_string)) %>%
+  arrange(desc(times_seen)) %>%
+  head(N) 
+
+ggplot(filtered_data, aes(x = reorder(simple_software_string, -times_seen), y = times_seen)) +
+  geom_bar(stat = "identity", fill = "steelblue") +
+  coord_flip() +
+  labs(
+    title = "Most Seen Application Types",
+    x = "Browser/Software",
+    y = "Times Seen"
+  ) +
+  scale_y_continuous(labels = comma) + 
+  theme_minimal()
+```
+
+
+```{r}
+# Num top entries
+N <- 20
+
+
+filtered_data <- data %>%
+  filter(software_type == "bot" & !is.na(simple_software_string)) %>%
+  arrange(desc(times_seen)) %>%
+  head(N) # top n
+
+
+ggplot(filtered_data, aes(x = reorder(simple_software_string, -times_seen), y = times_seen)) +
+  geom_bar(stat = "identity", fill = "steelblue") +
+  coord_flip() +
+  labs(
+    title = "Most Seen Bot Types (2016-2022)",
+    x = "Browser/Software",
+    y = "Times Seen"
+  ) +
+  scale_y_continuous(labels = comma) +
+  theme_minimal()
+```
+
+```{r}
+library(stringdist)
+
+# Leven distance
+average_levenshtein_similarity <- function(data, column_name) {
+  user_agents <- data[[column_name]]
+  n <- length(user_agents)
+  
+  pairwise_distances <- combn(user_agents, 2, function(pair) {
+    1 - stringdist(pair[1], pair[2], method = "lv") / max(nchar(pair[1]), nchar(pair[2]))
+  })
+  
+  mean(pairwise_distances, na.rm = TRUE)
+}
+
+
+average_similarity <- average_levenshtein_similarity(df, "user_agent")
+print(paste("Average Levenshtein similarity:", average_similarity))
+
+```
+
+
+```{r}
+
+# split on non abc123 chars, then jaccard the sets
+average_jaccard_similarity <- function(data, column_name) {
+  user_agents <- data[[column_name]]
+  n <- length(user_agents)
+  
+  tokenize <- function(text) {
+    unique(unlist(strsplit(text, "\\W+")))
+  }
+  
+  tokenized_sets <- lapply(user_agents, tokenize)
+  
+  pairwise_similarities <- combn(seq_along(tokenized_sets), 2, function(pair) {
+    set1 <- tokenized_sets[[pair[1]]]
+    set2 <- tokenized_sets[[pair[2]]]
+    intersection <- length(intersect(set1, set2))
+    union <- length(union(set1, set2))
+    if (union == 0) return(NA)  # div by 0
+    intersection / union
+  })
+  
+  mean(pairwise_similarities, na.rm = TRUE)
+}
+
+average_similarity <- average_jaccard_similarity(df, "user_agent")
+print(paste("Average Jaccard similarity:", round(average_similarity, 3)))
+
+```
+
